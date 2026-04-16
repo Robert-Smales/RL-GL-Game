@@ -81,7 +81,15 @@ class GStreamerPoseEstimationApp(GStreamerApp):
         self.create_pipeline()
 
     def get_pipeline_string(self):
-        source_pipeline = SOURCE_PIPELINE(video_source=self.video_source, video_width=self.video_width, video_height=self.video_height)
+        source_pipeline = SOURCE_PIPELINE(
+            video_source=self.video_source,
+            video_width=self.video_width,
+            video_height=self.video_height
+            
+        )
+
+        source_pipeline = f'{source_pipeline} ! videoflip video-direction=180'
+
         infer_pipeline = INFERENCE_PIPELINE(
             hef_path=self.hef_path,
             post_process_so=self.post_process_so,
@@ -94,7 +102,7 @@ class GStreamerPoseEstimationApp(GStreamerApp):
 
         display_pipeline = DISPLAY_PIPELINE(video_sink=self.video_sink, sync=self.sync, show_fps=True)
         pipeline_string = (
-            f'{source_pipeline} !'
+            f'{source_pipeline} ! '
             f'{infer_pipeline_wrapper} ! '
             f'{tracker_pipeline} ! '
             f'{user_callback_pipeline} ! '
