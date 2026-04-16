@@ -30,6 +30,14 @@ js = pygame.joystick.Joystick(0)
 js.init()
 print(f"🎮 Controller detected: {js.get_name()}")
 
+A_BUTTON = 0
+a_last = 0
+led_red = False
+LT_AXIS = 5
+RT_AXIS = 4
+laser_on = False
+water_on = False
+
 # -------------------------
 # HELPER FUNCTIONS
 # -------------------------
@@ -53,19 +61,54 @@ try:
         # Xbox mapping: left stick X = axis 0 (pan), right stick Y = axis 4 (tilt)
         pan = dz(js.get_axis(0))
         tilt = dz(js.get_axis(1))
+        lt_value = js.get_axis(LT_AXIS)
+        # Convert from [-1, 1] → [0, 1]
+        lt_normalized = (lt_value + 1) / 2
+        trigger_pressed = lt_normalized > 0.2
+        
+        rt_value = js.get_axis(RT_AXIS)
+        # Convert from [-1, 1] → [0, 1]
+        rt_normalized = (rt_value + 1) / 2
+        trigger_pressed_r = rt_normalized > 0.2
 
         pan_s = int(shaped(pan) * MAX_SPEED)
         tilt_s = int(shaped(-tilt) * MAX_SPEED)  # invert so up = tilt up
 
+        a_now = js.get_button(A_BUTTON)
+
+        if a_now == 1 and a_last == 0:
+            led_red = not led_red
+
+            if led_red:
+                ser.write("LED_RED\n".encode())
+                print("LED RED")
+            else:
+                ser.write("LED_GREEN\n".encode())
+                print("LED GREEN")
+
+        a_last = a_now
         # -------------------------
         # DEBUG PRINT
         # -------------------------
         print(f"Pan: {pan_s:5d}, Tilt: {tilt_s:5d}")
-
+        print(f"LT raw: {lt_value:.2f}, normalized: {lt_normalized:.2f}")
+        print(f"RT raw: {rt_value:.2f}, normalized: {rt_normalized:.2f}")
         # -------------------------
         # SEND TO ARDUINO
         # -------------------------
         ser.write(f"SPD {pan_s} {tilt_s}\n".encode())
+        if trigger_pressed and not laser_on:
+            ser.write(f"L1\n".encode())
+            laser_on = True
+        elif not trigger_pressed and laser_on:
+            ser.write(f"L0\n".encode())
+            laser_on = False
+        if trigger_pressed_r and not water_on:
+            ser.write(f"S1\n".encode())
+            water_on = True
+        elif not trigger_pressed_r and water_on:
+            ser.write(f"S0\n".encode())
+            water_on = False
 
         time.sleep(0.05)
 
