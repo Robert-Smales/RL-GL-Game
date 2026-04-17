@@ -16,7 +16,7 @@ void clampSetSpeed(AccelStepper& m, int s) {
   if (s < -MAX_ABS_SPEED) s = -MAX_ABS_SPEED;
   m.setSpeed(s);
 }
-void setColor (int r, int g, int b) {
+void setColour (int r, int g, int b) {
   for (int i = 0; i < NUM_LEDS; i++) {
     ring.setPixelColor(i, ring.Color(r, g, b));
   }
@@ -30,7 +30,7 @@ void setup() {
   digitalWrite(32, LOW);
   ring.begin();
   ring.show();
-  setColor(0, 0, 0);
+  setColour(0, 0, 0);
 }
 
 
@@ -53,10 +53,13 @@ void loop() {
       }
     }
     else if (cmd == "LED_RED") {
-      setColor(128, 0, 0);
+      setColour(128, 0, 0);
     }
     else if (cmd == "LED_GREEN") {
-      setColor(0, 128, 0);
+      setColour(0, 128, 0);
+    }
+    else if (cmd == "LED_OFF") {
+      setColour(0, 0, 0);
     }
     else if (cmd == "S1") {
       digitalWrite(4, HIGH);

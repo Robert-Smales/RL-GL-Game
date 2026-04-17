@@ -30,6 +30,7 @@ js = pygame.joystick.Joystick(0)
 js.init()
 print(f"🎮 Controller detected: {js.get_name()}")
 
+B_BUTTON = 1
 A_BUTTON = 0
 a_last = 0
 led_red = False
@@ -73,6 +74,11 @@ try:
 
         pan_s = int(shaped(pan) * MAX_SPEED)
         tilt_s = int(shaped(-tilt) * MAX_SPEED)  # invert so up = tilt up
+
+        b_now = js.get_button(B_BUTTON)
+        if b_now == 1:
+            ser.write("LED_OFF\n".encode())
+            print("LED OFF")
 
         a_now = js.get_button(A_BUTTON)
 
