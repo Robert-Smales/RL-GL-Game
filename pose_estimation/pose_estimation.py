@@ -33,59 +33,64 @@ def app_callback(pad, info, user_data):
     # Check if the buffer is valid
     if buffer is None:
         return Gst.PadProbeReturn.OK
+    try:
+        # Using the user_data to count the number of frames
+        user_data.increment()
+        string_to_print = f"Frame count: {user_data.get_count()}\n"
 
-    # Using the user_data to count the number of frames
-    user_data.increment()
-    string_to_print = f"Frame count: {user_data.get_count()}\n"
+        # Get the caps from the pad
+        format, width, height = get_caps_from_pad(pad)
 
-    # Get the caps from the pad
-    format, width, height = get_caps_from_pad(pad)
+        # If the user_data.use_frame is set to True, we can get the video frame from the buffer
+        frame = None
+        if user_data.use_frame and format is not None and width is not None and height is not None:
+            # Get video frame
+            frame = get_numpy_from_buffer(buffer, format, width, height)
 
-    # If the user_data.use_frame is set to True, we can get the video frame from the buffer
-    frame = None
-    if user_data.use_frame and format is not None and width is not None and height is not None:
-        # Get video frame
-        frame = get_numpy_from_buffer(buffer, format, width, height)
+        # Get the detections from the buffer
+        roi = hailo.get_roi_from_buffer(buffer)
+        detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
-    # Get the detections from the buffer
-    roi = hailo.get_roi_from_buffer(buffer)
-    detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
+        # Get the keypoints
+        keypoints = get_keypoints()
 
-    # Get the keypoints
-    keypoints = get_keypoints()
+        # Parse the detections
+        for detection in detections:
+            label = detection.get_label()
+            bbox = detection.get_bbox()
+            confidence = detection.get_confidence()
+            if label == "person":
+                # Get track ID
+                track_id = 0
+                track = detection.get_objects_typed(hailo.HAILO_UNIQUE_ID)
+                if len(track) == 1:
+                    track_id = track[0].get_id()
+                string_to_print += (f"Detection: ID: {track_id} Label: {label} Confidence: {confidence:.2f}\n")
 
-    # Parse the detections
-    for detection in detections:
-        label = detection.get_label()
-        bbox = detection.get_bbox()
-        confidence = detection.get_confidence()
-        if label == "person":
-            # Get track ID
-            track_id = 0
-            track = detection.get_objects_typed(hailo.HAILO_UNIQUE_ID)
-            if len(track) == 1:
-                track_id = track[0].get_id()
-            string_to_print += (f"Detection: ID: {track_id} Label: {label} Confidence: {confidence:.2f}\n")
+                # Pose estimation landmarks from detection (if available)
+                landmarks = detection.get_objects_typed(hailo.HAILO_LANDMARKS)
+                if len(landmarks) != 0:
+                    points = landmarks[0].get_points()
+                    if width is not None and height is not None:
+                        for eye in ['left_eye', 'right_eye']:
+                            keypoint_index = keypoints[eye]
+                            if keypoint_index >= len(point):
+                                continue
+                            point = points[keypoint_index]
+                            x = int((point.x() * bbox.width() + bbox.xmin()) * width)
+                            y = int((point.y() * bbox.height() + bbox.ymin()) * height)
+                            string_to_print += f"{eye}: x: {x:.2f} y: {y:.2f}\n"
+                            if user_data.use_frame and frame is not None:
+                                cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
-            # Pose estimation landmarks from detection (if available)
-            landmarks = detection.get_objects_typed(hailo.HAILO_LANDMARKS)
-            if len(landmarks) != 0:
-                points = landmarks[0].get_points()
-                for eye in ['left_eye', 'right_eye']:
-                    keypoint_index = keypoints[eye]
-                    point = points[keypoint_index]
-                    x = int((point.x() * bbox.width() + bbox.xmin()) * width)
-                    y = int((point.y() * bbox.height() + bbox.ymin()) * height)
-                    string_to_print += f"{eye}: x: {x:.2f} y: {y:.2f}\n"
-                    if user_data.use_frame:
-                        cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+        if user_data.use_frame and frame is not None:
+            # Convert the frame to BGR
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            user_data.set_frame(frame)
 
-    if user_data.use_frame:
-        # Convert the frame to BGR
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        user_data.set_frame(frame)
-
-    print(string_to_print)
+        print(string_to_print)
+    except Exception as e:
+        print(f"Callback error {e}")
     return Gst.PadProbeReturn.OK
 
 # This function can be used to get the COCO keypoints coorespondence map

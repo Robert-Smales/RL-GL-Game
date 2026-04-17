@@ -22,10 +22,15 @@ void setColour (int r, int g, int b) {
   }
   ring.show();
 }
+
+bool gotoMode = false;
+
 void setup() {
   Serial.begin(115200);
   pan.setMaxSpeed(MAX_ABS_SPEED);
   tilt.setMaxSpeed(MAX_ABS_SPEED);
+  pan.setAcceleration(2000);
+  tilt.setAcceleration(2000);
   pinMode(32, OUTPUT);
   digitalWrite(32, LOW);
   ring.begin();
@@ -48,8 +53,17 @@ void loop() {
     else if (cmd.startsWith("SPD")) {
       int spPan, spTilt;
       if (sscanf(cmd.c_str(), "SPD %d %d", &spPan, &spTilt) == 2) {
+        gotoMode = false;
         clampSetSpeed(pan, spPan);
         clampSetSpeed(tilt, spTilt);
+      }
+    }
+    else if (cmd.startsWith("GOTO_REL")) {
+      long dpan, dtilt;
+      if (sscanf(cmd.c_str(), "GOTO_REL %ld %ld, &dpan, &dtilt") == 2) {
+        pan.move(dpan);
+        tilt.move(dtilt);
+        gotoMode = true;
       }
     }
     else if (cmd == "LED_RED") {
@@ -68,6 +82,15 @@ void loop() {
       digitalWrite(4, LOW);
     }
   }
-  pan.runSpeed();
-  tilt.runSpeed();
+  if (gotoMode) {
+    bool panDone = !pan.run();
+    bool tiltDone = !tilt.run();
+    if (panDone && tiltDone) {
+      gotoMode = false;
+    } else {
+      pan.runSpeed();
+      tilt.runSpeed();
+    }
+  }
+  
 }
