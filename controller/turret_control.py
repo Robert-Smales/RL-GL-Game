@@ -80,7 +80,7 @@ try:
             ser.write("LED_OFF\n".encode())
             print("LED OFF")
 
-        a_now = js.get_button(A_BUTTON)
+        a_now = js.get_button(A_BUTTON) 
 
         if a_now == 1 and a_last == 0:
             led_red = not led_red

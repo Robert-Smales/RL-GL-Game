@@ -1,3 +1,21 @@
+# setup the virtual environment
+
+import os as _os
+import sys as _sys
+from pathlib import Path as _Path
+
+if _os.environ.get("RLGL_ENV_READY") != "1":
+    _script_dir = _Path(__file__).resolve().parent
+    _setup = _script_dir / "setup_env.sh"
+    _venv_py = _script_dir / "venv_hailo_rpi5_examples" / "bin" / "python"
+    _py = str(_venv_py) if _venv_py.exists() else _sys.executable
+    if _setup.exists():
+        _os.execvp("bash", [
+            "bash", "-c", 
+            f'source "{_setup}" >&2; RLGL_ENV_READY=1 exec "{_py}" "{__file__}" "$@"',
+            "bash", *_sys.argv[1:],
+        ])
+
 """
 Red Light Green Light — game orchestrator.
 
@@ -31,16 +49,16 @@ from pose_pipeline import GStreamerPoseEstimationApp
 SERIAL_PORT = "/dev/ttyUSB0"
 BAUD_RATE = 115200
 
-GREEN_MIN_S = 10
-GREEN_MAX_S = 15
-RED_MIN_S = 10
-RED_MAX_S = 15
+GREEN_MIN_S = 5
+GREEN_MAX_S = 7
+RED_MIN_S = 5
+RED_MAX_S = 7
 
 TRACK_DURATION_S = 2.5
 LASER_DURATION_S = 1.0
 RETURN_SETTLE_S = 1.5
 
-STEPS_PER_PIXEL = 3.0
+STEPS_PER_PIXEL = 2.0
 MAX_PAN_STEPS = 5000
 CENTRE_TOL_PX = 15
 TRACK_CMD_INTERVAL = 0.15
@@ -54,6 +72,8 @@ MIN_MOVEMENT_THRESHOLD = 40              # overall movement to count as "moved"
 DEADZONE = 0.18
 MAX_SPEED = 4000
 Y_BUTTON = 3
+A_BUTTON = 0
+B_BUTTON = 1
 LT_AXIS = 5
 RT_AXIS = 4
 
@@ -68,6 +88,7 @@ def send(ser, cmd):
 # Shared data 
 class GameUserData(app_callback_class):
     def __init__(self):
+        self._lock = threading.Lock()
         super().__init__()
         self.tracks  = {}   # track_id -> {start_pts, end_pts, last_bbox}
         self.frame_w = None
@@ -306,10 +327,30 @@ def manual_mode_until_y(ser):
 
     laser_on = False
     water_on = False
+    a_last = 0
+    b_last = 0
+    led_red = False
 
     try:
         while True:
             pygame.event.pump()
+
+            a_now = js.get_button(A_BUTTON)
+            if a_now == 1 and a_last == 0:
+                led_red = not led_red
+                if led_red:
+                    ser.write("LED_RED\n".encode())
+                    print("LED RED")
+                else:
+                    ser.write("LED_GREEN\n".encode())
+                    print("LED GREEN")
+            a_last = a_now
+
+            b_now = js.get_button(B_BUTTON)
+            if b_now and not b_last:
+                send(ser, "LED_OFF")
+                led_red = False
+            b_last = b_now
 
             if js.get_button(Y_BUTTON):
                 send(ser, "SPD 0 0")
@@ -323,7 +364,7 @@ def manual_mode_until_y(ser):
             pan = _dz(js.get_axis(0))
             tilt = _dz(js.get_axis(1))
             pan_s = int((pan ** 3) * MAX_SPEED)
-            tilt_s = int((tilt ** 3) * MAX_SPEED)
+            tilt_s = int((-tilt ** 3) * MAX_SPEED)
             with _SER_LOCK:
                 ser.write(f"SPD {pan_s} {tilt_s}\n".encode())
 
@@ -365,7 +406,7 @@ def main():
                 time.sleep(green_duration)
 
                 print("\n RED LIGHT")
-                send(ser, "LED_red")
+                send(ser, "LED_RED")
                 send(ser, "SPD 0 0")
                 run_red_scan(ser, user_data)
 
