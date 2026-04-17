@@ -230,16 +230,17 @@ def app_callback(pad, info, user_data):
                 landmarks = det.get_objects_typed(hailo.HAILO_LANDMARKS)
                 if not landmarks:
                     continue
-                points = landmarks(0).get_points()
+                points = landmarks[0].get_points()
                 if len(points) == 0:
                     continue
                 user_data.update(tid, points, det.get_bbox(), width, height)
             elif mode == 'track' and tid == target_id:
-                user_data.track_update(det.getbbox(), width, height)
+                user_data.track_update(det.get_bbox(), width, height)
 
     except Exception as e:
+        import traceback
         print(f"[callback] {e}")
-
+        traceback.print_exc()
     return Gst.PadProbeReturn.OK
 
 
