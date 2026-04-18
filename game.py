@@ -49,8 +49,8 @@ from pose_pipeline import GStreamerPoseEstimationApp
 SERIAL_PORT = "/dev/ttyUSB0"
 BAUD_RATE = 115200
 
-GREEN_MIN_S = 5
-GREEN_MAX_S = 7
+GREEN_MIN_S = 3
+GREEN_MAX_S = 5
 RED_MIN_S = 5
 RED_MAX_S = 7
 
@@ -59,7 +59,7 @@ LASER_DURATION_S = 1.0
 RETURN_SETTLE_S = 1.5
 ON_TARGET_FRAMES_REQUIRED = 3  # consecutive centred frames before firing
 
-STEPS_PER_PIXEL = 2.0
+STEPS_PER_PIXEL = 1.2
 MAX_PAN_STEPS = 5000
 CENTRE_TOL_PX = 15
 TRACK_CMD_INTERVAL = 0.15
@@ -411,8 +411,9 @@ def run_red_scan(ser, user_data, js, abort):
             on_f = user_data.on_target_frames
         elapsed = time.time() - state['track_start']
         if ready:
-            print(f"[track] on target after {elapsed:.1f}s - firing")
-            fire_laser()
+            print(f"[track] on target after {elapsed:.1f}s - halting to settle before firing")
+            send(ser, "SPD 0 0")
+            schedule(250, fire_laser)
             return False
         if elapsed >= TRACK_MAX_S:
             print(f"[track] TIMEOUT after {elapsed:.1f}s | "
