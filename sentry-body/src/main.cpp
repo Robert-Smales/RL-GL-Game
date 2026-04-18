@@ -60,11 +60,23 @@ void loop() {
     }
     else if (cmd.startsWith("GOTO_REL")) {
       long dpan, dtilt;
-      if (sscanf(cmd.c_str(), "GOTO_REL %ld %ld, &dpan, &dtilt") == 2) {
+      if (sscanf(cmd.c_str(), "GOTO_REL %ld %ld", &dpan, &dtilt) == 2) {
         pan.move(dpan);
         tilt.move(dtilt);
         gotoMode = true;
       }
+    }
+    else if (cmd == "ZERO") {
+      pan.setCurrentPosition(0);
+      tilt.setCurrentPosition(0);
+      pan.setSpeed(0);
+      tilt.setSpeed(0);
+      gotoMode = false;
+    }
+    else if (cmd == "HOME") {
+      pan.moveTo(0);
+      tilt.moveTo(0);
+      gotoMode = true;
     }
     else if (cmd == "LED_RED") {
       setColour(128, 0, 0);
@@ -83,14 +95,13 @@ void loop() {
     }
   }
   if (gotoMode) {
-    bool panDone = !pan.run();
-    bool tiltDone = !tilt.run();
-    if (panDone && tiltDone) {
+    bool panMoving = pan.run();
+    bool tiltMoving = tilt.run();
+    if (!panMoving && !tiltMoving) {
       gotoMode = false;
-    } else {
-      pan.runSpeed();
-      tilt.runSpeed();
     }
+  } else {
+    pan.runSpeed();
+    tilt.runSpeed();
   }
-  
 }
