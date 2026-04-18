@@ -3247,3 +3247,6 @@
 [2026-04-18 06:40:06.869] [2821] [HailoRT] [info] [queue_elements.cpp:46] [~BaseQueueElement] Queue element PushQEl6AsyncHwEl has 0 frames in his Queue on destruction
 [2026-04-18 06:40:06.869] [2821] [HailoRT] [info] [queue_elements.cpp:46] [~BaseQueueElement] Queue element PushQEl3AsyncHwEl has 0 frames in his Queue on destruction
 [2026-04-18 06:40:06.870] [2821] [HailoRT] [info] [queue_elements.cpp:46] [~BaseQueueElement] Queue element PushQEl4AsyncHwEl has 0 frames in his Queue on destruction
+[2026-04-18 06:55:49.510] [4119] [HailoRT] [info] [device.cpp:49] [Device] OS Version: Linux 6.12.25+rpt-rpi-2712 #1 SMP PREEMPT Debian 1:6.12.25-1+rpt1 (2025-04-30) aarch64
+[2026-04-18 06:55:49.515] [4119] [HailoRT] [info] [control.cpp:108] [control__parse_identify_results] firmware_version is: 4.20.0
+[2026-04-18 06:55:49.518] [4119] [HailoRT] [info] [control.cpp:108] [control__parse_identify_results] firmware_version is: 4.20.0

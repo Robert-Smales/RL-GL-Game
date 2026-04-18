@@ -459,7 +459,15 @@ def init_joystick():
     pygame.init()
     pygame.joystick.init()
     if pygame.joystick.get_count() == 0:
-        raise SystemExit("No controller detected. pair it first.")
+        print("Waiting for controller to be connected")
+        try:
+            while pygame.joystick.get_count() == 0:
+                pygame.joystick.quit()
+                pygame.joystick.init()
+                time.sleep(1.0)
+        except KeyboardInterrupt:
+                raise SystemExit("aborted while waiting for controller.")
+        print("Controller connected")
     js = pygame.joystick.Joystick(0)
     js.init()
     return js
