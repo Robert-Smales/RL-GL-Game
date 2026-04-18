@@ -436,14 +436,18 @@ def run_red_scan(ser, user_data, js, abort):
         with user_data._lock:
             user_data.mode = 'scan'
         # HOME uses the motor's actual current position (zeroed at track start)
-        # so we return exactly to the starting orientation.
         send(ser, "HOME")
         schedule(int(RETURN_SETTLE_S * 1000), _quit)
         return False
 
     GLib.timeout_add(POLL_Y_MS, poll_y)
     schedule(red_duration * 1000, end_scan)
-    app.run()
+    # kept calling a sys.exit that stopped the whole python pipeline, means it can loop back to green light
+    try:
+        app.run()
+    except SystemExit as e:
+        if e.code not in (0, None):
+            raise
 
 # Manual mode until Y press
 def _dz(v):
