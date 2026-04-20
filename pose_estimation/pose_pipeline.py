@@ -28,9 +28,9 @@ from hailo_apps_infra.gstreamer_app import (
     dummy_callback
 )
 
-#-----------------------------------------------------------------------------------------------
+
 # User Gstreamer Application
-# -----------------------------------------------------------------------------------------------
+
 
 # This class inherits from the hailo_rpi_common.GStreamerApp class
 

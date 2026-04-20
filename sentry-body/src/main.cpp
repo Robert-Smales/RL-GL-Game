@@ -1,11 +1,15 @@
+// MAIN BODY of the Pointer, This includes all actuator exectution (making the robot move)
+// Takes all the inputs given through the serial connection and makes them 
+// 
+//
+
 #include <AccelStepper.h>
 #include <Adafruit_NeoPixel.h>
 
 #define LED_PIN 27
 #define NUM_LEDS 60
 
-Adafruit_NeoPixel ring(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
-
+Adafruit_NeoPixel ring(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800); // Initialising the ring variable
 AccelStepper pan(AccelStepper::DRIVER, 14, 12); // STEP, DIR pins for pan
 AccelStepper tilt(AccelStepper::DRIVER, 2, 15); // STEP, DIR pins for tilt
 
@@ -16,6 +20,7 @@ void clampSetSpeed(AccelStepper& m, int s) {
   if (s < -MAX_ABS_SPEED) s = -MAX_ABS_SPEED;
   m.setSpeed(s);
 }
+
 void setColour (int r, int g, int b) {
   for (int i = 0; i < NUM_LEDS; i++) {
     ring.setPixelColor(i, ring.Color(r, g, b));
@@ -25,6 +30,7 @@ void setColour (int r, int g, int b) {
 
 bool gotoMode = false;
 
+//setting the base values for all the variables that need it
 void setup() {
   Serial.begin(115200);
   pan.setMaxSpeed(MAX_ABS_SPEED);
@@ -38,7 +44,7 @@ void setup() {
   setColour(0, 0, 0);
 }
 
-
+// main loop that turns the commands from the serial connection into actions through the pins on the arduino
 void loop() {
   if (Serial.available()) {
     String cmd = Serial.readStringUntil('\n');

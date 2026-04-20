@@ -17,15 +17,16 @@ if _os.environ.get("RLGL_ENV_READY") != "1":
         ])
 
 """
-Red Light Green Light — game orchestrator.
+Red Light Green Light — Main file .
 
 Green light: idle, camera off, no inference.
-Red light:   run pose estimation for RED_LIGHT_DURATION seconds,
-             compare START vs END pose,
-             find player with most real movement,
-             aim turret at their centre.
+Red light: run pose estimation for RED_LIGHT_DURATION seconds,
+           compare START vs END pose,
+           find player with most real movement,
+           aim turret at their centre.
 """
 
+# importa
 import os
 import sys
 import random
@@ -54,7 +55,7 @@ GREEN_MAX_S = 5
 RED_MIN_S = 5
 RED_MAX_S = 7
 
-TRACK_MAX_S = 4.0            # hard cap on how long we chase a target
+TRACK_MAX_S = 4.0  # hard cap on how long the target is chased 
 LASER_DURATION_S = 1.0
 RETURN_SETTLE_S = 1.5
 ON_TARGET_FRAMES_REQUIRED = 3  # consecutive centred frames before firing
@@ -63,16 +64,16 @@ STEPS_PER_PIXEL = 1.2
 MAX_PAN_STEPS = 5000
 CENTRE_TOL_PX = 15
 TRACK_CMD_INTERVAL = 0.15
-PAN_INVERT = True           # flip if pan moves the wrong way
-TILT_INVERT = True           # flip if tilt moves the wrong way
-POLL_Y_MS = 50               # how often to sample Y during auto mode
+PAN_INVERT = True  # flipped because the camera was turing the wrong way
+TILT_INVERT = True  # flipped because the camera was moving the wrong way
+POLL_Y_MS = 50  # how often to sample Y during auto mode
 
 # Movement tuning
 STABLE_KEYPOINTS = [5, 6, 11, 12]  # shoulders + hips
-PER_POINT_THRESHOLD = 8               # ignore jitter (pixels)
-MIN_MOVEMENT_THRESHOLD = 40              # overall movement to count as "moved"
+PER_POINT_THRESHOLD = 8   # ignore jitter (pixels)
+MIN_MOVEMENT_THRESHOLD = 40   # overall movement to count as "moved"
 
-# Controller
+# Controller buttons mapping
 DEADZONE = 0.18
 MAX_SPEED = 4000
 Y_BUTTON = 3
@@ -84,6 +85,7 @@ RT_AXIS = 4
 # Serial writer
 _SER_LOCK = threading.Lock()
 
+# making it faster later on to send commands
 def send(ser, cmd):
     with _SER_LOCK:
         ser.write((cmd + "\n").encode())
@@ -109,7 +111,7 @@ class GameUserData(app_callback_class):
         # diagnostics
         self.track_updates = 0
         self.track_ids_seen = set()
-
+    # set reset for end of red light stage as its rebooted
     def reset(self):
         with self._lock:
             self.tracks  = {}
@@ -156,7 +158,7 @@ class GameUserData(app_callback_class):
                     peak[i] = dist
 
             data['last_bbox'] = bbox
-
+    # getss the average of the peak per points
     def score_peaks(self, peak_per_point):
         total = 0.0
         count = 0
@@ -168,6 +170,7 @@ class GameUserData(app_callback_class):
                 count += 1
         return total / count if count > 0 else 0.0
 
+    # uses the collected data to see which player moved the most
     def most_moved(self):
         with self._lock:
             if not self.tracks:
@@ -187,6 +190,8 @@ class GameUserData(app_callback_class):
 
             return best_id, self.tracks[best_id]['last_bbox']
 
+    # function to see if the camera is centred within the bounding box during tracking, making adjustments until it either reaches the middle for the specified time
+    # or whether it gets timed out for taking too long (which most of the time its still over the player that moved the most)
     def track_update(self, bbox, width, height):
         now = time.time()
         cx_px = (bbox.xmin() + bbox.width() / 2.0) * width
@@ -236,7 +241,7 @@ class GameUserData(app_callback_class):
                 print(f"[track] serial: {e}")
 
             
-# GStreamer callback 
+# GStreamer callback collecting data from the gstreamer 
 def app_callback(pad, info, user_data):
     buffer = info.get_buffer()
     if buffer is None:
@@ -247,7 +252,7 @@ def app_callback(pad, info, user_data):
         if width is None or height is None:
             return Gst.PadProbeReturn.OK
 
-        roi        = hailo.get_roi_from_buffer(buffer)
+        roi = hailo.get_roi_from_buffer(buffer)
         detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
         with user_data._lock:
@@ -285,7 +290,7 @@ def app_callback(pad, info, user_data):
     return Gst.PadProbeReturn.OK
 
 
-# Abort flag used to interrupt automated mode with Y
+# abort flag used to interrupt automated mode with Y
 class Abort:
     def __init__(self):
         self._flag = False
@@ -298,7 +303,7 @@ class Abort:
         return self._flag
 
 
-# Red-light + tracking cycle
+# red-light + tracking cycle
 def run_red_scan(ser, user_data, js, abort):
     project_root = Path(__file__).resolve().parent
     os.environ["HAILO_ENV_FILE"] = str(project_root / ".env")
@@ -347,6 +352,7 @@ def run_red_scan(ser, user_data, js, abort):
             pass
         _quit()
 
+    # trigger for manual mode
     def poll_y():
         if state['aborted']:
             return False
@@ -357,7 +363,8 @@ def run_red_scan(ser, user_data, js, abort):
             abort_now()
             return False
         return True
-
+    
+    # end of the can either starting the loop again or targeting the user that moved most
     def end_scan():
         if state['aborted']:
             return False
@@ -368,8 +375,8 @@ def run_red_scan(ser, user_data, js, abort):
             return False
 
         print(f"[judge] Player {tid} moved most - entering Track phase.")
-        # Zero the motor origin so HOME recenters exactly regardless of how
-        # many GOTO_REL commands we pile up during tracking.
+
+        # zero the motor origin so HOME recenters exactly regardless of how many GOTO_REL commands piled up during tracking.
         send(ser, "ZERO")
         with user_data._lock:
             user_data.mode = 'track'
@@ -400,6 +407,7 @@ def run_red_scan(ser, user_data, js, abort):
         schedule(100, wait_on_target)
         return False
 
+    # making sure the pointer doesnt keep overcorrecting
     def wait_on_target():
         if state['aborted']:
             return False
@@ -436,7 +444,7 @@ def run_red_scan(ser, user_data, js, abort):
         send(ser, "L0")
         with user_data._lock:
             user_data.mode = 'scan'
-        # HOME uses the motor's actual current position (zeroed at track start)
+        # send back to thee state it was at before tracking
         send(ser, "HOME")
         schedule(int(RETURN_SETTLE_S * 1000), _quit)
         return False
@@ -450,7 +458,7 @@ def run_red_scan(ser, user_data, js, abort):
         if e.code not in (0, None):
             raise
 
-# Manual mode until Y press
+# manual mode until Y press
 def _dz(v):
     if abs(v) < DEADZONE:
         return 0.0
@@ -481,6 +489,7 @@ def wait_button_release(js, btn, timeout_s=2.0):
             return
         time.sleep(0.02)
 
+# let player use controller to use device before starting the game, allowing remote use and also letting the player go far enough back 
 def manual_mode_until_y(ser, js):
     print("MANUAL mode active - press Y to start automated game.")
     wait_button_release(js, Y_BUTTON)
@@ -546,7 +555,7 @@ def manual_mode_until_y(ser, js):
 
 
 
-# Sleep that aborts on Y press
+# sleep that aborts on Y press
 def green_sleep(js, abort, duration):
     end = time.time() + duration
     while time.time() < end:
@@ -557,7 +566,7 @@ def green_sleep(js, abort, duration):
             return
         time.sleep(0.05)
 
-
+# defining the function called in main to switch from the manual mode to automatic mode
 def run_auto_game(ser, user_data, js, abort):
     wait_button_release(js, Y_BUTTON)
     abort.reset()
